@@ -1,0 +1,141 @@
+---
+title: "tidy data"
+output: html_document
+date: "2022-09-27"
+---
+```{r}
+library(tidyverse)
+options(tibble.print_min = 5)
+```
+
+```{r}
+pulse_df = 
+  haven::read_sas("./data/public_pulse_data.sas7bdat") %>%
+  janitor::clean_names()
+
+pulse_df
+```
+columns in pulse_df can be same kind of variables, such as 01_m, 06_m, ....
+not tidy
+
+```{r}
+pulse_tidy_data = 
+  pivot_longer(
+    pulse_df,
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit",
+    values_to ="bdi",
+    names_prefix = "bdi_score_ "
+  )
+
+pulse_tidy_data
+```
+now different bdi variables are combined into one column.
+```{r}
+pulse_df = 
+  haven::read_sas("./data/public_pulse_data.sas7bdat") %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit",
+    values_to ="bdi",
+    names_prefix = "bdi_score_ "  ) %>%
+relocate(visit) %>%
+  mutate(
+    visit = replace(visit, visit == "bl", "00m"),
+    visit = factor(visit)  ) %>%
+  arrange(id, visit)
+
+print(pulse_df, n = 12)
+```
+arrange() let us arrange the data by id, and then by visit
+
+```{r}
+litters_wide =
+  read.csv("./data/FAS_litters.csv") %>%
+  janitor::clean_names() %>%
+  select(litter_number, ends_with("weight")) %>%
+  pivot_longer(
+    gd0_weight:gd18_weight,
+    names_to = "gd",
+    values_to = "weight") %>%
+  mutate(gd = recode(gd, "gd0_weight" = 0, "gd18_weight" = 18))
+```
+recode() switch values by their name or position.
+
+```{r}
+analysis_result = tibble(
+  group = c("treatment", "treatment", "placebo", "placebo"),
+  time = c("pre", "post", "pre", "post"),
+  mean = c(4, 8, 3.5, 4)
+)
+```
+
+```{r}
+pivot_wider(
+  analysis_result,
+  names_from = "time",
+  values_from = "mean")
+```
+groups in rows, times in columns
+
+```{r}
+fellowship_ring = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "B3:D6") %>%
+  mutate(movie = "fellowship_ring")
+```
+
+```{r}
+two_towers = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "F3:H6") %>%
+  mutate(movie = "two_towers")
+
+return_king = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "J3:L6") %>%
+  mutate(movie = "return_king")
+  
+```
+
+```{r}
+lotr_tidy = 
+  bind_rows(fellowship_ring, two_towers, return_king) %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    female:male,
+    names_to = "gender",
+    values_to = "words" ) %>%
+  mutate(race = str_to_lower(race)) %>%
+  select(movie, everything())
+```
+
+```{r}
+pup_data = 
+  read_csv("./data/FAS_pups.csv") %>%
+  janitor::clean_names() %>%
+  mutate(
+    sex = recode(sex, '1' = "male", '2' = "female"),
+    sex = factor(sex)
+  )
+```
+should use side codes '' when '1' because it's not numeric.
+
+```{r}
+litter_data = 
+  read.csv("./data/FAS_litters.csv") %>%
+  janitor::clean_names()%>%
+  separate(group, into = c("dose","day_of_tx"), sep = 3) %>%
+  relocate(litter_number) %>%
+  mutate(
+    wt_gain = gd18_weight - gd0_weight,
+    dose = str_to_lower(dose)
+  )
+```
+
+```{r}
+fas_data = 
+  left_join(pup_data, litter_data, by = "litter_number")
+```
+one people have several babies will be added to the dataset more than once.
+
+
+
